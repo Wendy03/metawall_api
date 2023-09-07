@@ -4,6 +4,6 @@ const upload = require('../service/image');
 const uploadControllers = require('../controllers/upload');
 const { isAuth, generateSendJWT } = require('../service/auth');
 
-router.post('/', isAuth, upload, uploadControllers.uploadFile);
+router.post('/', upload, isAuth, uploadControllers.uploadFile);
 
 module.exports = router;

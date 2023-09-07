@@ -24,7 +24,7 @@ const posts = {
     handleSuccess(res, '取得貼文', post);
   }),
   createPost: handleErrorAsync(async (req, res, next) => {
-    const { content, image, createdAt } = req.body;
+    const { content, image } = req.body;
     if (content === '') {
       return appError(400, '欄位資料填寫不全', next);
     } else {
@@ -32,7 +32,6 @@ const posts = {
         content,
         image,
         user: req.user.id,
-        createdAt,
       });
       handleSuccess(res, '新增成功', newPost);
     }

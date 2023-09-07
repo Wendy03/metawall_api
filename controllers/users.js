@@ -6,7 +6,9 @@ const Post = require('../models/posts');
 const appError = require('../service/appError');
 const handleErrorAsync = require('../service/handleErrorAsync');
 const handleSuccess = require('../service/handleSuccess');
-const { isAuth, generateSendJWT } = require('../service/auth');
+const { generateSendJWT } = require('../service/auth');
+
+const passwordRule = /^([a-zA-Z]+\d+|\d+[a-zA-Z]+)[a-zA-Z0-9]*$/;
 
 const users = {
   signUp: handleErrorAsync(async (req, res, next) => {
@@ -24,9 +26,12 @@ const users = {
       return appError('400', '暱稱至少 2 個字元以上', next);
     }
     // 密碼 8 碼以上
-    if (!validator.isLength(password, { min: 8 })) {
-      return appError('400', '密碼需至少 8 碼以上，並中英混合', next);
-    }
+     if (!validator.isLength(password, { min: 8 })) {
+       errMsgAry.push('密碼需至少 8 碼以上');
+     }
+     if (!passwordRule.test(password)) {
+       errMsgAry.push('密碼需英數混合的驗證');
+     }
     // 是否為 Email
     if (!validator.isEmail(email)) {
       return appError('400', 'Email 格式不正確', next);
@@ -53,59 +58,47 @@ const users = {
     }
     generateSendJWT(user, 200, res);
   }),
-  getUsers: handleErrorAsync(async (req, res) => {
-    const users = await User.find();
-    handleSuccess(res, '取得使用者資料', users);
-  }),
   getUser: handleErrorAsync(async (req, res) => {
     const currentUserId = req.user.id;
     const users = await User.findById(currentUserId);
     handleSuccess(res, '取得使用者資料', users);
   }),
   editUser: handleErrorAsync(async (req, res, next) => {
-    if (req.user.id !== req.params.id) {
-      return appError(401, '你沒有權限', next);
+    const { name, gender, photo } = req.body;
+    const id = req.user.id;
+    if (!name) {
+      return appError(400, '欄位資料填寫不全', next);
     } else {
-      const { name, gender, photo } = req.body;
-      const id = req.params.id;
-      if (!name) {
-        return appError(400, '欄位資料填寫不全', next);
+      const editUser = await User.findByIdAndUpdate(
+        id,
+        {
+          name,
+          gender,
+          photo,
+        },
+        { new: true, runValidators: true }
+      );
+      if (!editUser) {
+        return appError(400, '編輯失敗', next);
       } else {
-        const editUser = await User.findByIdAndUpdate(
-          id,
-          {
-            name,
-            gender,
-            photo,
-          },
-          { new: true }
-        );
-        if (!editUser) {
-          return appError(400, '編輯失敗', next);
-        } else {
-          const users = await User.find();
-          handleSuccess(res, '編輯使用者', users);
-        }
+        const user = await User.findById(id);
+        handleSuccess(res, '編輯使用者', user);
       }
     }
   }),
   updatePassword: handleErrorAsync(async (req, res, next) => {
-    if (req.user.id !== req.params.id) {
-      return appError(401, '你沒有權限', next);
-    } else {
-      const { password, confirmPassword } = req.body;
-      if (!validator.isLength(password, { min: 8 })) {
-        return appError('400', '密碼需至少 8 碼以上，並中英混合', next);
-      }
-      if (password !== confirmPassword) {
-        return appError('400', '密碼不一致！', next);
-      }
-      newPassword = await bcrypt.hash(password, 12);
-      const user = await User.findByIdAndUpdate(req.user.id, {
-        password: newPassword,
-      });
-      generateSendJWT(user, 200, res);
+    const { password, confirmPassword } = req.body;
+    if (!validator.isLength(password, { min: 8 })) {
+      return appError('400', '密碼需至少 8 碼以上，並中英混合', next);
     }
+    if (password !== confirmPassword) {
+      return appError('400', '密碼不一致！', next);
+    }
+    newPassword = await bcrypt.hash(password, 12);
+    const user = await User.findByIdAndUpdate(req.user.id, {
+      password: newPassword,
+    });
+    generateSendJWT(user, 200, res);
   }),
   getLikes: handleErrorAsync(async (req, res, next) => {
     const likeList = await Post.find({
