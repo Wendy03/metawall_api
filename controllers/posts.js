@@ -1,3 +1,4 @@
+const ObjectId = require('mongoose').Types.ObjectId;
 const Post = require('../models/posts');
 const Comment = require('../models/comments');
 const appError = require('../service/appError');
@@ -20,6 +21,9 @@ const posts = {
   }),
   getPost: handleErrorAsync(async (req, res) => {
     const postId = req.params.id;
+    if (!postId || !ObjectId.isValid(postId)) {
+      return appError(400, '路由資訊錯誤', next);
+    }
     const post = await Post.findById(postId);
     handleSuccess(res, '取得貼文', post);
   }),
@@ -38,21 +42,32 @@ const posts = {
   }),
   like: handleErrorAsync(async function (req, res, next) {
     const _id = req.params.id;
-    await Post.findOneAndUpdate({ _id }, { $addToSet: { likes: req.user.id } });
-    res.status(201).json({
-      status: 'success',
-      postId: _id,
-      userId: req.user.id,
-    });
+    if (!_id || !ObjectId.isValid(_id)) {
+      return appError(400, '路由資訊錯誤', next);
+    }
+    const updatePost = await Post.findOneAndUpdate(
+      { _id },
+      { $addToSet: { likes: req.user.id } },
+      { new: true }
+    );
+    if (!updatePost) {
+      return appError(400, '按讚錯誤', next);
+    }
+    handleSuccess(res, '成功更新讚數', updatePost);
   }),
   unlike: handleErrorAsync(async (req, res, next) => {
     const _id = req.params.id;
-    await Post.findOneAndUpdate({ _id }, { $pull: { likes: req.user.id } });
-    res.status(201).json({
-      status: 'success',
-      postId: _id,
-      userId: req.user.id,
-    });
+    if (!_id || !ObjectId.isValid(_id)) {
+      return appError(400, '路由資訊錯誤', next);
+    }
+    const updatePost = await Post.findOneAndUpdate(
+      { _id },
+      { $pull: { likes: req.user.id } }, { new: true }
+    );
+    if (!updatePost) {
+      return appError(400, '按讚錯誤', next);
+    }
+    handleSuccess(res, '成功移除按讚', updatePost);
   }),
   createComment: handleErrorAsync(async (req, res, next) => {
     const user = req.user.id;
