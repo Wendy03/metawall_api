@@ -1,5 +1,5 @@
+const ObjectId = require('mongoose').Types.ObjectId;
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const User = require('../models/users');
 const Post = require('../models/posts');
@@ -26,12 +26,12 @@ const users = {
       return appError('400', '暱稱至少 2 個字元以上', next);
     }
     // 密碼 8 碼以上
-     if (!validator.isLength(password, { min: 8 })) {
-       errMsgAry.push('密碼需至少 8 碼以上');
-     }
-     if (!passwordRule.test(password)) {
-       errMsgAry.push('密碼需英數混合的驗證');
-     }
+    if (!validator.isLength(password, { min: 8 })) {
+      errMsgAry.push('密碼需至少 8 碼以上');
+    }
+    if (!passwordRule.test(password)) {
+      errMsgAry.push('密碼需英數混合的驗證');
+    }
     // 是否為 Email
     if (!validator.isEmail(email)) {
       return appError('400', 'Email 格式不正確', next);
@@ -110,21 +110,29 @@ const users = {
     handleSuccess(res, '取得 LikeList', likeList);
   }),
   follow: handleErrorAsync(async (req, res, next) => {
+    const { id } = req.params;
+    if (!id || !ObjectId.isValid(id)) {
+      return appError(400, '路由資訊錯誤', next);
+    }
+    const checkUser = await User.findById(id);
+    if (!checkUser) {
+      return appError(400, '查無用戶', next);
+    }
     if (req.params.id === req.user.id) {
       return next(appError(401, '您無法追蹤自己', next));
     }
     await User.updateOne(
       {
         _id: req.user.id,
-        'following.user': { $ne: req.params.id },
+        'following.user': { $ne: id },
       },
       {
-        $addToSet: { following: { user: req.params.id } },
+        $addToSet: { following: { user: id } },
       }
     );
     await User.updateOne(
       {
-        _id: req.params.id,
+        _id: id,
         'followers.user': { $ne: req.user.id },
       },
       {
@@ -137,6 +145,14 @@ const users = {
     });
   }),
   unfollow: handleErrorAsync(async (req, res, next) => {
+    const { id } = req.params;
+    if (!id || !ObjectId.isValid(id)) {
+      return appError(400, '路由資訊錯誤', next);
+    }
+    const checkUser = await User.findById(id);
+    if (!checkUser) {
+      return appError(400, '查無用戶', next);
+    }
     if (req.params.id === req.user.id) {
       return next(appError(401, '您無法取消追蹤自己', next));
     }
@@ -145,12 +161,12 @@ const users = {
         _id: req.user.id,
       },
       {
-        $pull: { following: { user: req.params.id } },
+        $pull: { following: { user: id } },
       }
     );
     await User.updateOne(
       {
-        _id: req.params.id,
+        _id: id,
       },
       {
         $pull: { followers: { user: req.user.id } },
