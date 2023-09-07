@@ -73,6 +73,9 @@ const posts = {
     const user = req.user.id;
     const post = req.params.id;
     const { comment } = req.body;
+    if (!post || !ObjectId.isValid(post)) {
+      return appError(400, '路由資訊錯誤', next);
+    }
     const newComment = await Comment.create({
       post,
       user,
@@ -87,6 +90,9 @@ const posts = {
   }),
   getUserPost: handleErrorAsync(async (req, res, next) => {
     const user = req.params.id;
+     if (!user || !ObjectId.isValid(user)) {
+       return appError(400, '路由資訊錯誤', next);
+     }
     const posts = await Post.find({ user }).populate({
       path: 'comments',
       select: 'comment user',
